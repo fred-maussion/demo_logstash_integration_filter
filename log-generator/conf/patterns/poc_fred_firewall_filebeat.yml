@@ -1,0 +1,107 @@
+---
+
+# configuration file of single log pattern
+
+name: firewall
+
+# if true this pattern is enabled and it will be used
+enabled: true
+
+# Changing the locale of the random generated data, see the available option in Faker website : https://faker.readthedocs.io/en/master/locales.html
+locale: en_US
+
+# Output selection 
+stdout: false
+elastic: false
+log_output : true
+
+# path where store the log. If the path doesn't exist will be created
+path: ./logs/fortinet-firewall-filebeat.log
+
+# remove log file before use it
+remove_file: true
+
+# event per seconds for this pattern, default 1
+# if specified this value overwrite the common one
+eps: 200000
+
+# eps correction percentage, default 1.2
+correction: 1.12
+
+# time period in seconds. This value says how many seconds of logs will be generate
+time_period: 10
+
+generator_type: template
+
+# logs of example, to use as documentation or use for random generator in raw generator type
+examples:
+  - "Feb  5 09:12:11 ns1 named[80090]: client 192.168.10.12#3261: query: www.server.example IN A"
+
+# log template to random generator
+# for replace the timestamp use this table: 
+# https://docs.python.org/2/library/datetime.html#strftime-and-strptime-behavior
+# You can use more than one template
+template: 
+  - 'logver=600098792 timestamp={:%b %d %H:%M:%S} devname="{devname}" devid="FG22R317GBC{policyid}" vd="{vd}_{duration}" logid="0000000{policyid}" type="traffic" subtype="{subtype}" level="{level}" srcip={ipaddress} srcport={port} srcintf="DMZ-FW-G" srcintfrole="DMZ" dstip={ipaddress} dstport={port} dstintf="{dstintf}" dstintfrole="{dstintfrole}" poluuid="e12qw7fe-2598-51ec-58795-491ba86e9b72" sessionid=35879262 proto=6 action="{action}" policyid={policyid} policytype="policy" service="{service}_{port}" dstcountry="{dstcountry}" srccountry="{dstcountry}" trandisp="noop" duration={duration} sentbyte={sentbyte} rcvdbyte={rcvdbyte} sentpkt=16 appcat="unscanned" devtype="Unknown" devcategory="None" mastersrcmac="{srcmac}" srcmac="{srcmac}" srcserver=1 dstdevtype="Router/NAT Device" dstdevcategory="None" masterdstmac="{dstmac}" dstmac="{dstmac}" dstserver=1 tz="+0200"'
+
+fields:
+  ipaddress: func_rand_ipv4
+  pid: func_rand_int 0 100000
+  port: func_rand_int 1025 65535
+  policyid: func_rand_int 1 300
+  duration: func_rand_int 1 30
+  sentbyte: func_rand_int 1 3567
+  rcvdbyte: func_rand_int 1 3567
+  srcmac: func_rand_mac_address
+  dstmac: func_rand_mac_address
+  timestamp: func_rand_unix_time
+  poluuid: func_rand_uuid4
+  action: 
+    - close
+    - client-rst
+    - accept
+    - reject
+    - deny
+  devname:
+    - BIGFW
+    - SMALLFW
+  vd:
+    - VLAN_
+  dstintf:
+    - LAN
+    - WAN
+    - DMZ
+  dstintfrole:
+    - lan
+    - wan
+    - dmz
+  service:
+    - tcp
+    - udp 
+  level:
+    - debug
+    - notice
+    - error
+    - info 
+  subtype:
+    - input
+    - output
+    - forward
+  srccountry:
+    - France
+    - United States
+    - Israel
+    - Spain
+    - Canada
+    - Albania
+    - Bangladesh
+    - Brazil
+  dstcountry:
+    - France
+    - United States
+    - Israel
+    - Spain
+    - Canada
+    - Albania
+    - Bangladesh
+    - Brazil

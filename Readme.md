@@ -36,18 +36,20 @@ You can look after your logs if the configuration is well applied
 journalctl -f -xu logstash
 ```
 
-### Elastic-agent deployed and registered to your elastic instance
+### Elastic-agent
+
+#### Elastic-agent deployed and registered to your elastic instance
 
 Install elastic-agent using the official [documentation](https://www.elastic.co/guide/en/fleet/current/install-fleet-managed-elastic-agent.html)
 
-### Fortinet integration installed and configured to read log input
+#### Fortinet integration installed and configured to read log input
 
 Once registered, you can configure your respective policy to add [Fortinet Firewall integration ](https://docs.elastic.co/en/integrations/fortinet#firewall) and configure it to read from the input you've selected. Below an example with log input.
 
 ![Elastic-agent Fortinet Integration](img/logstash_integration_1.png)
 
 
-### Configure elastic-agent output
+#### Configure elastic-agent output
 
 In order to showcase logstash integration pipeline capabilities, we are going to configure elastic-agent policy output to point to our logstash. 
 First you need to create a new output in your fleet configuration. For this you'll need to go to _Fleet -> Settings -> Outputs -> Add Output_ and fill up the configuration. For ex :
@@ -57,6 +59,43 @@ First you need to create a new output in your fleet configuration. For this you'
 Once created you'll need to configure your agent policy to use the recently created output. For this you'll need to go to _Fleet -> Agent policies -> "YOUR AGENT POLICY" -> Settings -> Fleet Server_ and modify according to your settings. For ex. 
 
 ![Elastic-agent Fortinet Integration](img/logstash_integration_3.png)
+
+### Filebeat
+
+While you may want to switch over to elastic-agent it may happen you want to keep your existing ingestion architecture running on top of filebeat
+
+#### Filebeat deployed
+
+Install filebeat using the official [documentation](https://www.elastic.co/guide/en/beats/filebeat/current/filebeat-installation-configuration.html)
+
+#### Fortinet integration installed and configured to read log input
+
+Once installed, you can add [Fortinet Firewall integration ](https://docs.elastic.co/en/integrations/fortinet#firewall) assets by going to -> _Integrations -> Fortinet FortiGate Firewall Logs -> Settings -> Install Fortinet FortiGate Firewall Logs assets_
+
+This will install all the assets from the integrations including the ingest pipeline.
+
+#### Configure filebeat
+
+In order to showcase logstash integration pipeline capabilities, we are going to configure filebeat to point to our logstash and use the fortinet integration pipeline.
+For this you can use the following configuration snippet :
+
+```bash
+filebeat.inputs:
+- type: filestream
+  enabled: true 
+  id: fortinet-firewall
+  paths:
+    - /var/log/fortinet/fortinet-firewall-filebeat.log
+
+output.logstash:
+  hosts: ["logstash.home.local:5044"]
+```
+
+and restart filebeat
+
+```bash
+systemctl restart filebeat
+```
 
 ### (optional) Elastic-agent Logstash Integration
 
@@ -112,7 +151,7 @@ docker run -v `pwd`/conf/:/root/.config/rlog_generator/ -v `pwd`/logs:/logs/ ghc
 
 Go to Fortinet Dashboard and validate data is well parsed and coming in.
 
-## Logstash Ingest Pipeline
+## Elastic-agent - Logstash Ingest Pipeline
 
 Now we are going to move from elasticsearch pipeline execution to logstash pipeline. Below the overall logstash demo ingestion piepline:
 
@@ -136,7 +175,7 @@ stateDiagram-v2
     }
 ```
 
-### Logstash Integration Pipeline Creation
+### Elastic-agent - Logstash Integration Pipeline Creation
 
 ```bash
 input {
@@ -162,7 +201,67 @@ output {
 }
 ```
 
-### Generation and validation
+### Elastic-agent - Generation and validation
+
+Start generating data using _[log-generator](https://github.com/fred-maussion/log-generator)_ and the yml pipeline located under the _log-generator/conf/patterns_ folder of this repository:
+
+```bash
+docker run -v `pwd`/conf/:/root/.config/rlog_generator/ -v `pwd`/logs:/logs/ ghcr.io/fred-maussion/log-generator:develop
+```
+
+## Filebeat - Logstash Ingest Pipeline
+
+Now we are going to move from elasticsearch pipeline execution to logstash pipeline. Below the overall logstash demo ingestion piepline:
+
+```mermaid
+stateDiagram-v2
+    log_gen : log-generator
+    agent : filebeat
+    logstash_pipeline : ingest pipeline
+    elasticsearch_pipeline : ingest pipeline
+
+    log_gen --> log
+    log --> agent
+    agent --> Logstash 
+    state Logstash {
+        [*] --> logstash_pipeline : RAW
+        logstash_pipeline --> output 
+    }
+    output --> Elasticsearch : ECS
+    state Elasticsearch {
+        elasticsearch_pipeline --> index
+    }
+```
+
+### Filebeat - Logstash Integration Pipeline Creation
+
+```bash
+input {
+  beats {
+    port => 5044
+  }
+}
+
+filter {
+  elastic_integration{ 
+    cloud_id => "<cloud_id>"
+    api_key => "<cloud_api_key>" # base64 encoded format
+  }
+}
+
+output {
+  elasticsearch {
+    hosts => "<cloud_endpoint>"
+    api_key => "<cloud_api_key>" # logstash encoded format
+    data_stream => true
+    data_stream_dataset => "fortinet_fortigate.log"
+    data_stream_type => "logs"
+    ssl => true
+  }
+}
+```
+
+### Filebeat - Generation and validation
 
 Start generating data using _[log-generator](https://github.com/fred-maussion/log-generator)_ and the yml pipeline located under the _log-generator/conf/patterns_ folder of this repository:
 
